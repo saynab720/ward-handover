@@ -48,7 +48,7 @@ def post(client, url, data, csrf_from="/"):
 
 @pytest.fixture
 def signed_in(client, login):
-    login(email="tom.hughes@demo.nhs.test")
+    login()  # Amara, nurse in charge: can admit and start handovers
     return client
 
 

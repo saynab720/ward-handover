@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}No permission – Ward Handover{% endblock %}
+{% block content %}
+<div class="message-page">
+  <h1>You don't have permission to do this</h1>
+  <p>
+    Your role{% if current_user.is_authenticated %} ({{ current_user.role.value|replace('_', ' ') }}){% endif %}
+    can't {{ action }}.
+  </p>
+  <p>If you think you should have access, speak to your ward manager.</p>
+  <p><a href="{{ url_for('handover.index') }}">Go to the home page</a></p>
+</div>
+{% endblock %}

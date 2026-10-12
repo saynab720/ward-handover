@@ -6,12 +6,13 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
-from . import audit
+from . import audit, permissions
 from .db import db
 from .handover import (
     ENTRY_FLAG_FIELDS, ENTRY_TEXT_FIELDS, SHIFT_ORDER, TEXT_LIMIT, bed_label, bed_sort_key, open_draft,
 )
-from .models import Admission, Bed, HandoverEntry, Patient, ResusStatus, Task, Ward
+from .models import Admission, Bed, HandoverEntry, Patient, ResusStatus, Ward
+from .permissions import requires
 
 bp = Blueprint("patients", __name__)
 
@@ -22,7 +23,9 @@ DISCHARGE_DESTINATIONS = ["Home", "Care home", "Another hospital", "Hospice", "D
 @bp.before_request
 @login_required
 def require_login():
-    """Every page here shows patient data, so all need a signed-in user."""
+    """Every page here shows patient data, so all need a signed-in user allowed to see it."""
+    if not permissions.can(permissions.VIEW):
+        permissions.deny(permissions.VIEW)
 
 
 # --- Helpers --------------------------------------------------------------------
@@ -204,6 +207,7 @@ def read_admission_form(ward, form, errors):
 
 
 @bp.route("/wards/<code>/admit", methods=["GET", "POST"])
+@requires(permissions.MANAGE_PATIENTS)
 def admit(code):
     ward = get_ward(code)
     context = dict(ward=ward, beds=empty_beds(ward), sex_options=SEX_OPTIONS, resus_options=list(ResusStatus))
@@ -284,6 +288,7 @@ def get_current_admission(admission_id):
 
 
 @bp.route("/admissions/<int:admission_id>/move", methods=["GET", "POST"])
+@requires(permissions.MANAGE_PATIENTS)
 def move(admission_id):
     admission = get_current_admission(admission_id)
     wards = db.session.scalars(db.select(Ward).where(Ward.is_active).order_by(Ward.name)).all()
@@ -363,6 +368,7 @@ def transfer(admission, ward, bed):
 # --- Discharge ------------------------------------------------------------------
 
 @bp.route("/admissions/<int:admission_id>/discharge", methods=["GET", "POST"])
+@requires(permissions.MANAGE_PATIENTS)
 def discharge(admission_id):
     admission = get_current_admission(admission_id)
     open_tasks = [t for t in admission.tasks if t.completed_at is None]

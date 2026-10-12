@@ -45,13 +45,13 @@ def start(client, shift_date=TODAY, shift="night", code="W12"):
 
 @pytest.fixture
 def ready(app, client, login):
-    """Signed in as Tom, with today's long day completed."""
-    login(email=TOM)
+    """Signed in as Amara (nurse in charge), with today's long day completed."""
+    login()
     return complete_draft(app, client)
 
 
 def test_button_shows_once_completed(app, client, login):
-    login(email=TOM)
+    login()
     handover_id = draft_id(app)
     assert "Start next handover" not in client.get(f"/handovers/{handover_id}").get_data(as_text=True)
     complete_draft(app, client)
@@ -78,10 +78,10 @@ def test_start_copies_entries_forward(app, client, ready):
     with app.app_context():
         new = db.session.scalar(db.select(Handover).where(Handover.status == HandoverStatus.DRAFT))
         previous = db.session.get(Handover, previous_id)
-        tom = db.session.scalar(db.select(Staff).where(Staff.email == TOM))
+        amara = db.session.scalar(db.select(Staff).where(Staff.email == "amara.okafor@demo.nhs.test"))
 
         assert (new.shift_date, new.shift) == (TODAY, Shift.NIGHT)
-        assert new.handed_over_by_id == tom.id
+        assert new.handed_over_by_id == amara.id
         assert new.ward_notes == previous.ward_notes
         assert len(new.entries) == 6
 
@@ -168,7 +168,7 @@ def test_open_tasks_still_show(app, client, ready):
 
 
 def test_existing_draft_is_opened_instead(app, client, login):
-    login(email=TOM)
+    login()
     existing = draft_id(app)
     response = client.get("/wards/W12/handovers/new")
     assert response.headers["Location"] == f"/handovers/{existing}"

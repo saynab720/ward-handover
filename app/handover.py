@@ -5,11 +5,12 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
-from . import audit
+from . import audit, permissions
 from .db import db
 from .models import (
     Admission, Handover, HandoverEntry, HandoverStatus, Priority, Shift, Staff, Task, Ward,
 )
+from .permissions import requires
 
 bp = Blueprint("handover", __name__)
 
@@ -17,7 +18,12 @@ bp = Blueprint("handover", __name__)
 @bp.before_request
 @login_required
 def require_login():
-    """Every page in this blueprint shows patient data, so all need a signed-in user."""
+    """Every page in this blueprint shows patient data, so all need a signed-in user
+    whose role is allowed to see it."""
+    if not permissions.can(permissions.VIEW):
+        if request.endpoint == "handover.index":
+            return render_template("no_patient_access.html")
+        permissions.deny(permissions.VIEW)
 
 # Order shifts within a day so "latest handover" picks the right one
 SHIFT_ORDER = {Shift.EARLY: 0, Shift.LONG_DAY: 1, Shift.LATE: 2, Shift.NIGHT: 3}
@@ -212,6 +218,7 @@ def read_entry_form(form):
 
 
 @bp.route("/handovers/<int:handover_id>/entries/<int:entry_id>/edit", methods=["GET", "POST"])
+@requires(permissions.EDIT_ENTRY)
 def edit_entry(handover_id, entry_id):
     handover, refused = get_draft_handover(handover_id)
     if refused:
@@ -249,6 +256,7 @@ def edit_entry(handover_id, entry_id):
 # --- Ward notes -----------------------------------------------------------------
 
 @bp.route("/handovers/<int:handover_id>/notes", methods=["GET", "POST"])
+@requires(permissions.EDIT_NOTES)
 def edit_notes(handover_id):
     handover, refused = get_draft_handover(handover_id)
     if refused:
@@ -282,6 +290,7 @@ def parse_due(raw):
 
 
 @bp.route("/handovers/<int:handover_id>/entries/<int:entry_id>/tasks", methods=["POST"])
+@requires(permissions.ADD_TASK)
 def add_task(handover_id, entry_id):
     handover, refused = get_draft_handover(handover_id)
     if refused:
@@ -311,6 +320,7 @@ def add_task(handover_id, entry_id):
 
 
 @bp.route("/handovers/<int:handover_id>/tasks/<int:task_id>/complete", methods=["POST"])
+@requires(permissions.COMPLETE_TASK)
 def complete_task(handover_id, task_id):
     handover, refused = get_draft_handover(handover_id)
     if refused:
@@ -332,6 +342,7 @@ def complete_task(handover_id, task_id):
 # --- Completing the handover ----------------------------------------------------
 
 @bp.route("/handovers/<int:handover_id>/complete", methods=["POST"])
+@requires(permissions.MANAGE_HANDOVER)
 def complete_handover(handover_id):
     handover, refused = get_draft_handover(handover_id)
     if refused:
@@ -409,6 +420,7 @@ def check_new_shift(ward, form):
 
 
 @bp.route("/wards/<code>/handovers/new", methods=["GET", "POST"])
+@requires(permissions.MANAGE_HANDOVER)
 def start_handover(code):
     ward = db.session.scalar(db.select(Ward).where(Ward.code == code)) or abort(404)
 

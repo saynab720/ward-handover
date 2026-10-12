@@ -59,8 +59,14 @@ def check_csrf():
 
 
 @bp.app_context_processor
-def inject_csrf():
-    return {"csrf_token": csrf_token}
+def inject_helpers():
+    from . import permissions
+    return {"csrf_token": csrf_token, "can": permissions.can, "perm": permissions}
+
+
+@bp.app_errorhandler(403)
+def forbidden(error):
+    return render_template("403.html", action=error.description), 403
 
 
 # --- Routes --------------------------------------------------------------------

@@ -10,14 +10,14 @@
   </div>
   <div class="head-actions">
     <a class="button-secondary" href="{{ url_for('handover.latest_handover', code=ward.code) }}">Handover</a>
-    <a class="button-primary" href="{{ url_for('patients.admit', code=ward.code) }}">Admit patient</a>
+    {% if can(perm.MANAGE_PATIENTS) %}<a class="button-primary" href="{{ url_for('patients.admit', code=ward.code) }}">Admit patient</a>{% endif %}
   </div>
 </div>
 
 <div class="table-wrap">
 <table class="patient-table">
   <thead>
-    <tr><th>Bed</th><th>Patient</th><th>Admitted</th><th>Reason</th><th>EDD</th><th><span class="visually-hidden">Actions</span></th></tr>
+    <tr><th>Bed</th><th>Patient</th><th>Admitted</th><th>Reason</th><th>EDD</th>{% if can(perm.MANAGE_PATIENTS) %}<th><span class="visually-hidden">Actions</span></th>{% endif %}</tr>
   </thead>
   <tbody>
     {% for a in admissions %}
@@ -31,10 +31,12 @@
       <td class="nowrap">{{ a.admitted_at.strftime('%d/%m %H:%M') }}</td>
       <td>{{ a.reason_for_admission or '—' }}</td>
       <td class="nowrap">{{ a.expected_discharge_date.strftime('%d/%m') if a.expected_discharge_date else '—' }}</td>
+      {% if can(perm.MANAGE_PATIENTS) %}
       <td class="nowrap actions">
         <a href="{{ url_for('patients.move', admission_id=a.id) }}">Move</a>
         <a href="{{ url_for('patients.discharge', admission_id=a.id) }}">Discharge</a>
       </td>
+      {% endif %}
     </tr>
     {% else %}
     <tr><td colspan="6" class="empty">No patients on this ward.</td></tr>

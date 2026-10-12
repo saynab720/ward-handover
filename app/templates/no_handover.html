@@ -4,5 +4,7 @@
 <p><a href="{{ url_for('handover.index') }}">&larr; All wards</a></p>
 <h1>{{ ward.code }} · {{ ward.name }}</h1>
 <p class="empty">No handovers have been written for this ward yet.</p>
+{% if can(perm.MANAGE_HANDOVER) %}
 <p><a class="button-primary" href="{{ url_for('handover.start_handover', code=ward.code) }}">Start first handover</a></p>
+{% endif %}
 {% endblock %}

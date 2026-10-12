@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Ward Handover{% endblock %}
+{% block content %}
+<div class="message-page">
+  <h1>Welcome, {{ current_user.first_name }}</h1>
+  <p>Your account ({{ current_user.role.value|replace('_', ' ') }}) doesn't have access to patient information.</p>
+  <p class="muted">Staff account management will appear here.</p>
+</div>
+{% endblock %}

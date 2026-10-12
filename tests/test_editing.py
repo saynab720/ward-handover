@@ -232,7 +232,7 @@ def complete(client, handover_id, receiver_id):
 
 
 def test_complete_handover_locks_it(app, client, login, ids):
-    login(email=TOM)
+    login()  # nurse in charge
     complete(client, ids["draft"], ids["tom"])
     with app.app_context():
         handover = db.session.get(Handover, ids["draft"])
