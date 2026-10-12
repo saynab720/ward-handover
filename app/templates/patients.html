@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ ward.code }} patients – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('handover.index') }}">&larr; All wards</a></p>
+
+<div class="section-head page-head">
+  <div>
+    <h1>{{ ward.code }} · {{ ward.name }}</h1>
+    <p class="muted">{{ admissions|length }} patients · {{ empty_beds|length }} empty beds</p>
+  </div>
+  <div class="head-actions">
+    <a class="button-secondary" href="{{ url_for('handover.latest_handover', code=ward.code) }}">Handover</a>
+    <a class="button-primary" href="{{ url_for('patients.admit', code=ward.code) }}">Admit patient</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+<table class="patient-table">
+  <thead>
+    <tr><th>Bed</th><th>Patient</th><th>Admitted</th><th>Reason</th><th>EDD</th><th><span class="visually-hidden">Actions</span></th></tr>
+  </thead>
+  <tbody>
+    {% for a in admissions %}
+    {% set p = a.patient %}
+    <tr>
+      <td class="nowrap"><strong>{{ a.bed.label if a.bed else 'No bed' }}</strong></td>
+      <td>
+        <strong>{{ p.last_name|upper }}, {{ p.first_name }}</strong><br>
+        <span class="muted small">{{ p.date_of_birth|age }}{{ p.sex[0] if p.sex }} · {{ p.hospital_number }}</span>
+      </td>
+      <td class="nowrap">{{ a.admitted_at.strftime('%d/%m %H:%M') }}</td>
+      <td>{{ a.reason_for_admission or '—' }}</td>
+      <td class="nowrap">{{ a.expected_discharge_date.strftime('%d/%m') if a.expected_discharge_date else '—' }}</td>
+      <td class="nowrap actions">
+        <a href="{{ url_for('patients.move', admission_id=a.id) }}">Move</a>
+        <a href="{{ url_for('patients.discharge', admission_id=a.id) }}">Discharge</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="empty">No patients on this ward.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if empty_beds %}
+<h2 class="spaced">Empty beds</h2>
+<p class="bed-chips">
+  {% for b in empty_beds %}<span class="badge">{{ b.label }}</span>{% endfor %}
+</p>
+{% endif %}
+{% endblock %}

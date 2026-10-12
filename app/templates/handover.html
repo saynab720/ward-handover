@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ handover.ward.code }} {{ handover.shift.value|replace('_', ' ')|title }} – Ward Handover{% endblock %}
+{% block content %}
+<p class="no-print top-links">
+  <a href="{{ url_for('handover.index') }}">&larr; All wards</a>
+  <a href="{{ url_for('patients.ward_patients', code=handover.ward.code) }}">{{ handover.ward.code }} patients: admit, move, discharge</a>
+</p>
+
+<section class="handover-head">
+  <div>
+    <h1>{{ handover.ward.code }} · {{ handover.ward.name }}</h1>
+    <p class="shift-line">
+      {{ handover.shift.value|replace('_', ' ')|title }} shift,
+      {{ handover.shift_date.strftime('%A %d %B %Y') }}
+      <span class="status status-{{ handover.status.value }}">{{ handover.status.value|title }}</span>
+    </p>
+    <p class="muted">
+      Handed over by {{ handover.handed_over_by.full_name }}
+      {% if handover.received_by %} to {{ handover.received_by.full_name }}{% endif %}
+      {% if handover.completed_at %} · completed {{ handover.completed_at.strftime('%H:%M') }}{% endif %}
+    </p>
+  </div>
+  <dl class="summary">
+    <div><dt>Patients</dt><dd>{{ entries|length }}</dd></div>
+    <div class="{{ 'alert' if flagged_count }}"><dt>Flagged</dt><dd>{{ flagged_count }}</dd></div>
+    <div><dt>Open tasks</dt><dd>{{ open_task_count }}</dd></div>
+    {% if is_draft %}
+    <div class="{{ 'warn' if not_updated_count }}"><dt>Not updated</dt><dd>{{ not_updated_count }}</dd></div>
+    {% endif %}
+  </dl>
+</section>
+
+{% if can_start_next %}
+<section class="next-box no-print">
+  <p>This handover is complete. Ready for the next shift?</p>
+  <a class="button-primary" href="{{ url_for('handover.start_handover', code=handover.ward.code) }}">Start next handover</a>
+</section>
+{% endif %}
+
+{% if handover.ward_notes or is_draft %}
+<section class="ward-notes">
+  <div class="section-head">
+    <h2>Ward notes</h2>
+    {% if is_draft %}<a class="button-secondary no-print" href="{{ url_for('handover.edit_notes', handover_id=handover.id) }}">Edit notes</a>{% endif %}
+  </div>
+  <p class="pre">{{ handover.ward_notes or 'No ward notes yet.' }}</p>
+</section>
+{% endif %}
+
+<section class="patients">
+  {% for e in entries %}
+  {% set a = e.admission %}
+  {% set p = a.patient %}
+  <article class="patient {{ 'flagged' if e.is_flagged }}" id="entry-{{ e.id }}">
+    <header class="patient-head">
+      <div class="bed">{{ a.bed.label if a.bed else 'No bed' }}</div>
+      <div class="who">
+        <h3>{{ p.last_name|upper }}, {{ p.first_name }}</h3>
+        <p class="muted">
+          {{ p.date_of_birth|age }}{{ p.sex[0] if p.sex }} ·
+          NHS {{ p.nhs_number[:3] }} {{ p.nhs_number[3:6] }} {{ p.nhs_number[6:] }} ·
+          {{ p.hospital_number }}
+        </p>
+      </div>
+      <div class="news2 news2-{{ news2_class(e.news2_score) }}" title="NEWS2 score">
+        <span>NEWS2</span>
+        <strong>{{ e.news2_score if e.news2_score is not none else '–' }}</strong>
+      </div>
+    </header>
+
+    <div class="badges">
+      {% if a.discharged_at %}
+        {% set dest = a.discharge_destination or '' %}
+        <span class="badge badge-left">{{ dest if dest.startswith('Transferred') else 'Discharged' ~ (': ' ~ dest if dest) }} at {{ a.discharged_at.strftime('%H:%M') }}</span>
+      {% elif is_draft and e.not_updated_this_shift %}
+        <span class="badge badge-stale">{{ 'New patient: no handover written yet' if a.handover_entries|length == 1 else 'Not updated this shift' }}</span>
+      {% endif %}
+      {% if e.is_flagged %}<span class="badge badge-flag">Flagged</span>{% endif %}
+      {% if p.resus_status.value == 'dnacpr' %}
+        <span class="badge badge-dnacpr">DNACPR</span>
+      {% elif p.resus_status.value == 'not_documented' %}
+        <span class="badge badge-warn">Resus status not documented</span>
+      {% else %}
+        <span class="badge">For resus</span>
+      {% endif %}
+      {% if p.allergies and p.allergies|upper != 'NKDA' %}
+        <span class="badge badge-allergy">Allergy: {{ p.allergies }}</span>
+      {% else %}
+        <span class="badge">NKDA</span>
+      {% endif %}
+      {% if e.falls_risk %}<span class="badge badge-warn">Falls risk</span>{% endif %}
+      {% if e.pressure_risk %}<span class="badge badge-warn">Pressure risk</span>{% endif %}
+      {% if e.infection_control %}<span class="badge badge-infection">{{ e.infection_control }}</span>{% endif %}
+    </div>
+
+    <p class="admission muted">
+      {{ a.reason_for_admission }} · {{ a.consultant }} ·
+      day {{ (handover.shift_date - a.admitted_at.date()).days + 1 }}
+      {% if a.expected_discharge_date %} · EDD {{ a.expected_discharge_date.strftime('%d/%m') }}{% endif %}
+    </p>
+
+    <dl class="sbar">
+      <div><dt>S</dt><dd class="pre">{{ e.situation or '—' }}</dd></div>
+      <div><dt>B</dt><dd class="pre">{{ e.background or '—' }}</dd></div>
+      <div><dt>A</dt><dd class="pre">{{ e.assessment or '—' }}</dd></div>
+      <div><dt>R</dt><dd class="pre">{{ e.recommendation or '—' }}</dd></div>
+    </dl>
+
+    <dl class="care">
+      {% if e.obs_frequency %}<div><dt>Obs</dt><dd>{{ e.obs_frequency }}</dd></div>{% endif %}
+      {% if e.mobility %}<div><dt>Mobility</dt><dd>{{ e.mobility }}</dd></div>{% endif %}
+      {% if e.diet %}<div><dt>Diet</dt><dd>{{ e.diet }}</dd></div>{% endif %}
+    </dl>
+
+    {% set tasks = tasks_by_admission.get(a.id, []) %}
+    {% if tasks or is_draft %}
+    <div class="tasks">
+      <h4>Outstanding tasks</h4>
+      {% if tasks %}
+      <ul>
+        {% for t in tasks %}
+        <li class="task task-{{ t.priority.value }}">
+          {% if is_draft %}
+          <form method="post" class="no-print"
+                action="{{ url_for('handover.complete_task', handover_id=handover.id, task_id=t.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="tick" title="Mark as done" aria-label="Mark '{{ t.description }}' as done">✓</button>
+          </form>
+          {% endif %}
+          <span class="task-priority">{{ t.priority.value|title }}</span>
+          <span>{{ t.description }}</span>
+          {% if t.due_at %}<span class="muted">due {{ t.due_at.strftime('%d/%m %H:%M') }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted small">None.</p>
+      {% endif %}
+
+      {% if is_draft %}
+      <details class="add-task no-print">
+        <summary>Add task</summary>
+        <form method="post" action="{{ url_for('handover.add_task', handover_id=handover.id, entry_id=e.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>Task <input name="description" maxlength="500" required></label>
+          <label>Priority
+            <select name="priority">
+              {% for pr in priorities %}<option value="{{ pr.value }}">{{ pr.value|title }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>Due (optional) <input type="datetime-local" name="due_at"></label>
+          <button type="submit">Add</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if is_draft %}
+    <div class="entry-actions no-print">
+      <span class="muted small">Last updated by {{ e.updated_by.full_name }}</span>
+      <a class="button-secondary" href="{{ url_for('handover.edit_entry', handover_id=handover.id, entry_id=e.id) }}">Edit</a>
+    </div>
+    {% endif %}
+  </article>
+  {% else %}
+  <p class="empty">No patients in this handover.</p>
+  {% endfor %}
+</section>
+
+{% if is_draft %}
+<section class="complete-box no-print">
+  <h2>Complete handover</h2>
+  <p>Once completed, this handover is locked and can't be changed.</p>
+  <form method="post" action="{{ url_for('handover.complete_handover', handover_id=handover.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="received_by_id">Received by</label>
+    <select id="received_by_id" name="received_by_id" required>
+      <option value="">Choose…</option>
+      {% for s in receivers %}
+      <option value="{{ s.id }}" {{ 'selected' if s.id == current_user.id }}>
+        {{ s.full_name }} ({{ s.role.value|replace('_', ' ') }}{{ ', ' ~ s.home_ward.code if s.home_ward }})
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="button-primary">Complete handover</button>
+  </form>
+</section>
+{% endif %}
+
+{% if other_handovers %}
+<section class="history no-print">
+  <h2>Other handovers</h2>
+  <ul>
+    {% for h in other_handovers %}
+    <li>
+      <a href="{{ url_for('handover.view_handover', handover_id=h.id) }}">
+        {{ h.shift_date.strftime('%a %d %b') }} · {{ h.shift.value|replace('_', ' ')|title }}
+      </a>
+      <span class="muted">{{ h.status.value }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

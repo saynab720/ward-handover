@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Admit patient – {{ ward.code }} – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('patients.ward_patients', code=ward.code) }}">&larr; {{ ward.code }} patients</a></p>
+<h1>Admit patient to {{ ward.code }}</h1>
+
+{% macro field_error(name) %}{% if errors[name] %}<span class="error-message">{{ errors[name] }}</span>{% endif %}{% endmacro %}
+{% macro input(name, label, type='text', hint=None, maxlength=None) %}
+<div class="field {{ 'field-error' if errors[name] }}">
+  <label for="{{ name }}">{{ label }}</label>
+  {% if hint %}<span class="hint">{{ hint }}</span>{% endif %}
+  {{ field_error(name) }}
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values[name] or '' }}"
+         {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}>
+</div>
+{% endmacro %}
+{% macro textarea(name, label, hint=None) %}
+<div class="field {{ 'field-error' if errors[name] }}">
+  <label for="{{ name }}">{{ label }}</label>
+  {% if hint %}<span class="hint">{{ hint }}</span>{% endif %}
+  {{ field_error(name) }}
+  <textarea id="{{ name }}" name="{{ name }}" rows="3" maxlength="2000">{{ values[name] or '' }}</textarea>
+</div>
+{% endmacro %}
+
+{% if errors %}
+<div class="error-summary" role="alert">
+  <h2>Please fix the following</h2>
+  <ul>{% for message in errors.values() %}<li>{{ message }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if not patient %}
+<form method="get" class="find-box">
+  <label for="find">Find an existing patient</label>
+  <span class="hint">Hospital number or NHS number. Always check first, to avoid creating a duplicate record.</span>
+  <div class="find-row">
+    <input id="find" name="find" value="{{ request.args.get('find', '') }}">
+    <button type="submit" class="button-secondary">Find patient</button>
+  </div>
+</form>
+{% endif %}
+
+<form method="post" class="edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <fieldset>
+    <legend>Patient</legend>
+    {% if patient %}
+    <input type="hidden" name="patient_id" value="{{ patient.id }}">
+    <div class="known-patient">
+      <strong>{{ patient.last_name|upper }}, {{ patient.first_name }}</strong>
+      <span>Born {{ patient.date_of_birth.strftime('%d/%m/%Y') }} ({{ patient.date_of_birth|age }})</span>
+      <span>Hospital no. {{ patient.hospital_number }}</span>
+      {% if patient.nhs_number %}<span>NHS {{ patient.nhs_number[:3] }} {{ patient.nhs_number[3:6] }} {{ patient.nhs_number[6:] }}</span>{% endif %}
+    </div>
+    <p class="small"><a href="{{ url_for('patients.admit', code=ward.code) }}">Not the right patient?</a></p>
+    {% else %}
+    <div class="field-row">
+      {{ input('hospital_number', 'Hospital number', maxlength=20) }}
+      {{ input('nhs_number', 'NHS number (optional)', hint='10 digits', maxlength=12) }}
+    </div>
+    <div class="field-row">
+      {{ input('first_name', 'First name', maxlength=100) }}
+      {{ input('last_name', 'Last name', maxlength=100) }}
+    </div>
+    <div class="field-row">
+      {{ input('date_of_birth', 'Date of birth', type='date') }}
+      <div class="field">
+        <label for="sex">Sex</label>
+        <select id="sex" name="sex">
+          <option value="">Not recorded</option>
+          {% for s in sex_options %}<option {{ 'selected' if values.sex == s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    {% endif %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Safety</legend>
+    {{ input('allergies', 'Allergies', hint='Drug and reaction, e.g. "Penicillin (rash)". Enter NKDA if none known.', maxlength=500) }}
+    <div class="field {{ 'field-error' if errors.resus_status }}">
+      <label for="resus_status">Resus status</label>
+      {{ field_error('resus_status') }}
+      <select id="resus_status" name="resus_status">
+        {% for r in resus_options %}
+        <option value="{{ r.value }}" {{ 'selected' if values.resus_status == r.value }}>
+          {{ {'for_resus': 'For resus', 'dnacpr': 'DNACPR', 'not_documented': 'Not yet documented'}[r.value] }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Admission</legend>
+    <div class="field {{ 'field-error' if errors.bed_id }}">
+      <label for="bed_id">Bed</label>
+      {{ field_error('bed_id') }}
+      <select id="bed_id" name="bed_id">
+        <option value="">No bed yet</option>
+        {% for b in beds %}<option value="{{ b.id }}" {{ 'selected' if values.bed_id == b.id|string }}>{{ b.label }}{{ ' (side room)' if b.is_side_room }}</option>{% endfor %}
+      </select>
+    </div>
+    {{ textarea('reason_for_admission', 'Reason for admission') }}
+    {{ input('consultant', 'Consultant', maxlength=100) }}
+    {{ textarea('past_medical_history', 'Past medical history') }}
+    {{ input('expected_discharge_date', 'Expected discharge date (optional)', type='date') }}
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="button-primary">Admit patient</button>
+    <a href="{{ url_for('patients.ward_patients', code=ward.code) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

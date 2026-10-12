@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set p = admission.patient %}
+{% block title %}Move {{ p.last_name }} – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('patients.ward_patients', code=admission.ward.code) }}">&larr; {{ admission.ward.code }} patients</a></p>
+<h1>Move {{ p.last_name|upper }}, {{ p.first_name }}</h1>
+<p class="muted">Currently in {{ admission.ward.code }} · {{ admission.bed.label if admission.bed else 'no bed' }}</p>
+
+{% if error %}
+<div class="error-summary" role="alert"><h2>Please fix the following</h2><ul><li>{{ error }}</li></ul></div>
+{% endif %}
+
+<form method="post" class="edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <fieldset>
+    <legend>Move to</legend>
+    <div class="field">
+      <label for="destination">Ward and bed</label>
+      <span class="hint">Only empty beds are shown. Moving to another ward ends this stay and starts a new one there; open tasks go with the patient.</span>
+      <select id="destination" name="destination" required>
+        <option value="">Choose…</option>
+        {% for ward, beds in options %}
+        <optgroup label="{{ ward.code }} · {{ ward.name }}">
+          {% for b in beds %}<option value="bed:{{ b.id }}">{{ ward.code }} {{ b.label }}{{ ' (side room)' if b.is_side_room }}</option>{% endfor %}
+          {% if ward.id != admission.ward_id or admission.bed %}
+          <option value="ward:{{ ward.id }}">{{ ward.code }}, no bed yet</option>
+          {% endif %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </div>
+  </fieldset>
+  <div class="form-actions">
+    <button type="submit" class="button-primary">Move patient</button>
+    <a href="{{ url_for('patients.ward_patients', code=admission.ward.code) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

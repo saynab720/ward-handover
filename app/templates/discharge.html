@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set p = admission.patient %}
+{% block title %}Discharge {{ p.last_name }} – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('patients.ward_patients', code=admission.ward.code) }}">&larr; {{ admission.ward.code }} patients</a></p>
+<h1>Discharge {{ p.last_name|upper }}, {{ p.first_name }}</h1>
+<p class="muted">
+  {{ admission.ward.code }} · {{ admission.bed.label if admission.bed else 'no bed' }} ·
+  {{ p.hospital_number }} · admitted {{ admission.admitted_at.strftime('%d/%m/%Y') }}
+</p>
+
+{% if error %}
+<div class="error-summary" role="alert"><h2>Please fix the following</h2><ul><li>{{ error }}</li></ul></div>
+{% endif %}
+
+{% if open_tasks %}
+<div class="warning-box" role="note">
+  <h2>{{ open_tasks|length }} task{{ 's' if open_tasks|length != 1 }} still open</h2>
+  <ul>{% for t in open_tasks %}<li>{{ t.description }}</li>{% endfor %}</ul>
+  <p>Check these are done or handed on before discharging.</p>
+</div>
+{% endif %}
+
+<form method="post" class="edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <fieldset>
+    <legend>Discharge destination</legend>
+    {% for d in destinations %}
+    <label class="check"><input type="radio" name="destination" value="{{ d }}" required> {{ d }}</label>
+    {% endfor %}
+  </fieldset>
+  <div class="form-actions">
+    <button type="submit" class="button-danger">Discharge patient</button>
+    <a href="{{ url_for('patients.ward_patients', code=admission.ward.code) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

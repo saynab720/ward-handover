@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Start handover – {{ ward.code }} – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('handover.latest_handover', code=ward.code) }}">&larr; Back</a></p>
+
+<h1>Start next handover</h1>
+<p class="muted">{{ ward.code }} · {{ ward.name }}</p>
+
+{% if error %}
+<div class="error-summary" role="alert">
+  <h2>Please fix the following</h2>
+  <ul><li>{{ error }}</li></ul>
+</div>
+{% endif %}
+
+<form method="post" class="edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <fieldset>
+    <legend>Which shift?</legend>
+    <div class="field-row">
+      <div class="field">
+        <label for="shift_date">Date</label>
+        <span class="hint">For night shifts, the date the night starts</span>
+        <input type="date" id="shift_date" name="shift_date" value="{{ shift_date.isoformat() if shift_date }}" required>
+      </div>
+      <div class="field">
+        <label for="shift">Shift</label>
+        <span class="hint">&nbsp;</span>
+        <select id="shift" name="shift">
+          {% for s in shifts %}
+          <option value="{{ s.value }}" {{ 'selected' if s == shift }}>{{ s.value|replace('_', ' ')|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Patients</legend>
+    {% if plan.source %}
+    <p class="muted small">
+      Copied from the {{ plan.source.shift.value|replace('_', ' ') }} handover on
+      {{ plan.source.shift_date.strftime('%d/%m/%Y') }}. Every copied entry is marked
+      <strong>Not updated this shift</strong> until someone saves it.
+    </p>
+    {% endif %}
+
+    <h3 class="plan-heading">Carried forward ({{ plan.carried|length }})</h3>
+    {% if plan.carried %}
+    <ul class="plan-list">
+      {% for a, previous in plan.carried %}
+      <li><span class="plan-bed">{{ a.bed.label if a.bed else 'No bed' }}</span> {{ a.patient.last_name|upper }}, {{ a.patient.first_name }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted small">None.</p>{% endif %}
+
+    <h3 class="plan-heading">New to the ward, blank entry ({{ plan.new|length }})</h3>
+    {% if plan.new %}
+    <ul class="plan-list">
+      {% for a in plan.new %}
+      <li><span class="plan-bed">{{ a.bed.label if a.bed else 'No bed' }}</span> {{ a.patient.last_name|upper }}, {{ a.patient.first_name }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted small">None.</p>{% endif %}
+
+    {% if plan.leaving %}
+    <h3 class="plan-heading">Left out: discharged or moved ({{ plan.leaving|length }})</h3>
+    <ul class="plan-list muted">
+      {% for a in plan.leaving %}
+      <li>{{ a.patient.last_name|upper }}, {{ a.patient.first_name }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="button-primary">Start handover</button>
+    <a href="{{ url_for('handover.latest_handover', code=ward.code) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

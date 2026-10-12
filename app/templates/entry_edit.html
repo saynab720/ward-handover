@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% set p = entry.admission.patient %}
+{% block title %}Edit {{ p.last_name }} – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('handover.view_handover', handover_id=handover.id, _anchor='entry-' ~ entry.id) }}">&larr; Back to handover</a></p>
+
+<h1>{{ p.last_name|upper }}, {{ p.first_name }}</h1>
+<p class="muted">
+  {{ entry.admission.bed.label if entry.admission.bed else 'No bed' }} ·
+  {{ p.date_of_birth|age }}{{ p.sex[0] if p.sex }} ·
+  NHS {{ p.nhs_number[:3] }} {{ p.nhs_number[3:6] }} {{ p.nhs_number[6:] }} ·
+  {{ handover.ward.code }} {{ handover.shift.value|replace('_', ' ') }} {{ handover.shift_date.strftime('%d/%m/%Y') }}
+</p>
+
+{% if errors %}
+<div class="error-summary" role="alert">
+  <h2>{{ 'Someone else changed this patient' if errors._conflict else 'Please fix the following' }}</h2>
+  <ul>
+    {% for field, message in errors.items() %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if conflict %}
+<details class="their-version" open>
+  <summary>Their saved version</summary>
+  <dl>
+    {% for name in ['situation', 'background', 'assessment', 'recommendation', 'news2_score', 'obs_frequency', 'mobility', 'diet', 'infection_control'] %}
+    <div><dt>{{ name|replace('_', ' ')|capitalize }}</dt><dd class="pre">{{ entry[name] if entry[name] is not none else '—' }}</dd></div>
+    {% endfor %}
+  </dl>
+</details>
+{% endif %}
+
+{% macro textarea(name, label, hint) %}
+<div class="field {{ 'field-error' if errors[name] }}">
+  <label for="{{ name }}">{{ label }}</label>
+  {% if hint %}<span class="hint">{{ hint }}</span>{% endif %}
+  {% if errors[name] %}<span class="error-message">{{ errors[name] }}</span>{% endif %}
+  <textarea id="{{ name }}" name="{{ name }}" rows="3" maxlength="2000">{{ values[name] or '' }}</textarea>
+</div>
+{% endmacro %}
+
+{% macro text(name, label, maxlength, hint) %}
+<div class="field {{ 'field-error' if errors[name] }}">
+  <label for="{{ name }}">{{ label }}</label>
+  {% if hint %}<span class="hint">{{ hint }}</span>{% endif %}
+  {% if errors[name] %}<span class="error-message">{{ errors[name] }}</span>{% endif %}
+  <input id="{{ name }}" name="{{ name }}" value="{{ values[name] if values[name] is not none else '' }}" maxlength="{{ maxlength }}">
+</div>
+{% endmacro %}
+
+<form method="post" class="edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="version" value="{{ version }}">
+
+  <fieldset>
+    <legend>SBAR</legend>
+    {{ textarea('situation', 'Situation', 'What is happening now?') }}
+    {{ textarea('background', 'Background', 'Relevant history and treatment') }}
+    {{ textarea('assessment', 'Assessment', 'Your assessment of the patient') }}
+    {{ textarea('recommendation', 'Recommendation', 'What needs to happen next?') }}
+  </fieldset>
+
+  <fieldset>
+    <legend>Observations and care</legend>
+    <div class="field-row">
+      <div class="field field-narrow {{ 'field-error' if errors.news2_score }}">
+        <label for="news2_score">NEWS2 score</label>
+        <span class="hint">0–20, or blank</span>
+        {% if errors.news2_score %}<span class="error-message">{{ errors.news2_score }}</span>{% endif %}
+        <input id="news2_score" name="news2_score" inputmode="numeric" pattern="[0-9]*"
+               value="{{ values.news2_score if values.news2_score is not none else '' }}">
+      </div>
+      {{ text('obs_frequency', 'Obs frequency', 50, 'e.g. 4 hourly') }}
+    </div>
+    <div class="field-row">
+      {{ text('mobility', 'Mobility', 100, 'e.g. Zimmer frame + 1') }}
+      {{ text('diet', 'Diet', 100, 'e.g. NBM, IDDSI level 5') }}
+    </div>
+    {{ text('infection_control', 'Infection control', 100, 'e.g. MRSA, side room') }}
+  </fieldset>
+
+  <fieldset>
+    <legend>Risks</legend>
+    <label class="check"><input type="checkbox" name="falls_risk" {{ 'checked' if values.falls_risk }}> Falls risk</label>
+    <label class="check"><input type="checkbox" name="pressure_risk" {{ 'checked' if values.pressure_risk }}> Pressure ulcer risk</label>
+    <label class="check check-flag"><input type="checkbox" name="is_flagged" {{ 'checked' if values.is_flagged }}> Flag this patient (needs attention this shift)</label>
+  </fieldset>
+
+  <div class="form-actions">
+    <button type="submit" class="button-primary">Save changes</button>
+    <a href="{{ url_for('handover.view_handover', handover_id=handover.id, _anchor='entry-' ~ entry.id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

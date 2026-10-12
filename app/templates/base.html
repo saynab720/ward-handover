@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Ward Handover{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('handover.index') }}">Ward Handover</a>
+    <div class="topbar-right">
+      <span class="env-tag">Demo data only</span>
+      {% if current_user.is_authenticated %}
+      <span class="user">{{ current_user.full_name }} <span class="role">{{ current_user.role.value|replace('_', ' ')|title }}</span></span>
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="link-button">Sign out</button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+  <main class="page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <p class="flash flash-{{ category if category != 'message' else 'info' }}" role="alert">{{ message }}</p>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

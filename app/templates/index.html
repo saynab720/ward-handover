@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Wards</h1>
+{% if wards %}
+<ul class="ward-list">
+  {% for ward in wards %}
+  <li>
+    <a href="{{ url_for('handover.latest_handover', code=ward.code) }}">
+      <span class="ward-code">{{ ward.code }}</span>
+      <span class="ward-name">{{ ward.name }}</span>
+      <span class="muted">Handover</span>
+    </a>
+    <a class="ward-patients" href="{{ url_for('patients.ward_patients', code=ward.code) }}">
+      {{ current_patients.get(ward.id, 0) }} patients
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No wards yet. Run <code>flask --app app seed-demo</code> to add demo data.</p>
+{% endif %}
+{% endblock %}

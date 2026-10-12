@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Ward notes – Ward Handover{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('handover.view_handover', handover_id=handover.id) }}">&larr; Back to handover</a></p>
+
+<h1>Ward notes</h1>
+<p class="muted">
+  {{ handover.ward.code }} · {{ handover.shift.value|replace('_', ' ')|title }} shift,
+  {{ handover.shift_date.strftime('%d/%m/%Y') }}
+</p>
+
+<form method="post" class="edit-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field {{ 'field-error' if error }}">
+    <label for="ward_notes">Notes for the whole ward</label>
+    <span class="hint">Staffing, bed state, expected admissions, safety issues</span>
+    {% if error %}<span class="error-message">{{ error }}</span>{% endif %}
+    <textarea id="ward_notes" name="ward_notes" rows="6" maxlength="2000">{{ notes }}</textarea>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="button-primary">Save notes</button>
+    <a href="{{ url_for('handover.view_handover', handover_id=handover.id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

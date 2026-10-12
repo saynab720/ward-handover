@@ -1,0 +1,33 @@
+# Render Blueprint: creates the web app and a PostgreSQL database together.
+# In Render: New > Blueprint > pick this repository.
+services:
+  - type: web
+    name: ward-handover
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Create tables, add demo data on the very first start only, then run the app
+    startCommand: >-
+      flask --app app init-db &&
+      flask --app app seed-demo --if-empty &&
+      gunicorn "app:create_app()" --workers 2 --bind 0.0.0.0:$PORT
+    healthCheckPath: /login
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ward-handover-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "1"
+      - key: BEHIND_PROXY
+        value: "1"
+      - key: DEMO_PASSWORD
+        sync: false  # Render asks you for this when you create the Blueprint
+
+databases:
+  - name: ward-handover-db
+    plan: free
+    databaseName: ward_handover
+    user: ward_handover
