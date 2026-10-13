@@ -12,7 +12,7 @@ def database_url(app):
     url = os.environ.get("DATABASE_URL")
     if not url:
         return "sqlite:///" + os.path.join(app.instance_path, "ward_handover.db")
-    # Hosts give "postgres://" or "postgresql://"; SQLAlchemy needs to be told to use psycopg 3
+
     for prefix in ("postgres://", "postgresql://"):
         if url.startswith(prefix):
             return "postgresql+psycopg://" + url[len(prefix):]
@@ -22,7 +22,7 @@ def database_url(app):
 def init_app(app):
     """Connect the database to the Flask app and register the init-db command."""
     app.config.setdefault("SQLALCHEMY_DATABASE_URI", database_url(app))
-    # Check connections are still alive before use (hosted databases close idle ones)
+
     app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {"pool_pre_ping": True})
     db.init_app(app)
     app.cli.add_command(init_db_command)
@@ -35,7 +35,7 @@ def init_app(app):
 @with_appcontext
 def init_db_command():
     """Create all database tables."""
-    from . import models  # noqa: F401  (registers the tables with db)
+    from . import models  
 
     db.create_all()
     click.echo("Database initialised.")

@@ -5,8 +5,6 @@ from .models import AuditLog
 
 
 def log(action, table_name, record_id=None, details=None, staff_id=None):
-    """Add an audit record to the session. The caller commits it with the change itself,
-    so a change is never saved without its audit record (or the other way round)."""
     if staff_id is None and current_user and current_user.is_authenticated:
         staff_id = current_user.id
     db.session.add(AuditLog(

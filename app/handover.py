@@ -45,7 +45,7 @@ def bed_sort_key(label):
 
 
 def bed_label(admission):
-    return admission.bed.label if admission.bed else "zzz"  # patients without a bed go last
+    return admission.bed.label if admission.bed else "zzz"  
 
 
 def age_on(dob, today=None):

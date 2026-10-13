@@ -18,7 +18,6 @@ login_manager.login_view = "auth.login"
 login_manager.login_message = "Please sign in to view patient information."
 login_manager.session_protection = "strong"
 
-# Compared against when the email isn't found, so a wrong email takes as long as a wrong password
 _DUMMY_HASH = generate_password_hash(secrets.token_hex(16))
 
 
@@ -35,7 +34,7 @@ def audit(action, staff_id=None, details=None):
 
 def is_safe_next(target):
     """Only allow redirects back to pages on this site."""
-    if not target or "\\" in target:  # browsers treat "\" like "/", so "/\evil.com" means "//evil.com"
+    if not target or "\\" in target:
         return False
     parts = urlsplit(target)
     return not parts.scheme and not parts.netloc and target.startswith("/") and not target.startswith("//")
@@ -84,9 +83,9 @@ def login():
 
         password_ok = check_password_hash(staff.password_hash if staff else _DUMMY_HASH, password)
         if staff and password_ok and staff.is_active:
-            session.clear()  # new session on login, so an old session ID can't be reused
+            session.clear()  
             login_user(staff)
-            session.permanent = True  # expires after PERMANENT_SESSION_LIFETIME of inactivity
+            session.permanent = True
             audit("login", staff.id)
             next_page = request.args.get("next")
             return redirect(next_page if is_safe_next(next_page) else url_for("handover.index"))
